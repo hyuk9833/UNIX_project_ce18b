@@ -1,13 +1,16 @@
 #define _POSIX_SOURCE
 #include <sys/stat.h>
-#include<stdio.h> 
-#include<fcntl.h>
-#include<stdlib.h>
-#include<string.h>
-#include<pthread.h>
+#include <stdio.h> 
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdbool.h>
+#include <unistd.h>
+#define _POSIX_C_SOURCE 199309L
+#define BILLION 1000000000L;
 
 char readStr[256];
 bool firstword_used;
@@ -15,14 +18,23 @@ int user_connect = 0;
 pthread_t pthread1[3];
 int winner=0;
 bool client_bool,sig_timeout;
+//pthread_rwlock_t g_rwLock;
+pthread_mutex_t mutexsum;
 
 
 void *p_write_data(void* word){
     char *data = word;
-    //파일 락
+    /*int ret=pthread_rwlock_wrlock(&g_rwLock);
+    if (ret==0)
+    {
+        printf("error in wrlock\n");
+    }
+    */
+    pthread_mutex_lock(&mutexsum);
     FILE* fo = fopen("word_arr.txt","a");
     fprintf(fo,"%s ",data);
-    //파일 언락
+    //pthread_rwlock_unlock(&g_rwLock);
+    pthread_mutex_unlock(&mutexsum);
     fclose(fo);
    	pthread_exit(NULL);
 
@@ -62,6 +74,7 @@ void *p_read_client(void* client){
         pthread_join(pthread1[0],NULL);
         client_bool=!client_bool;
     }
+    close(fd);
    	pthread_exit(NULL);
 
 }
@@ -81,6 +94,14 @@ int main()
     int file3 = mkfifo("myfifo3",0666); //클라이언트2에게 보낼때 쓰는 파일
 	int file4 = mkfifo("myfifo4",0666); //클라이언트2에게 받을때 쓰는 파일
     int result;
+
+    //성능 측정을 위한 변수
+    //pthread_rwlock_init(&g_rwLock,NULL);
+    pthread_mutex_init(&mutexsum,NULL);
+    char *check="성능 측정";
+    char read_test[100];
+    struct timespec start, stop;
+
     char sendtext_cli[100];
     char win_cli[100];
     char filePath[100];
@@ -101,6 +122,17 @@ int main()
     if(user_connect==2){
         printf("게임을 시작합니다\n");
     }  
+    printf("게임을 시작하기전 성능 측정");
+    //타이머 시작
+    //clock_gettime(CLOCK_MONOTONIC,&start);
+    write(fd1,check,sizeof(check));
+    fd2=open("myfifo2",O_RDWR);
+    read(fd2,read_test,sizeof(read_test));
+    printf("입력 완료 입력 값은 : %s",read_test);
+    close(fd2);
+    //clock_gettime(CLOCK_MONOTONIC,&stop);
+    double accum =(stop.tv_sec-start.tv_sec)+(double)(stop.tv_nsec-start.tv_nsec)/(double)BILLION;
+    printf("걸리는 시간은 : %.9f\n",accum);
     
     while(1){
         sleep(3);

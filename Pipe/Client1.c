@@ -13,7 +13,7 @@ char readStr[256];
 bool write_data;
 bool word_already;
 bool timer,sig_timeout;
-
+pthread_mutex_t mutexsum;
 
 void *p_read_server(void* server){ //서버로부터 값 읽기
     char *filepath = server;
@@ -36,6 +36,7 @@ void *p_read_server(void* server){ //서버로부터 값 읽기
 void *p_find_sameword(void* word){
 	char *findWord = word;
 	char buf[1024];
+    pthread_mutex_lock(&mutexsum);
 	FILE* fp = fopen("word_arr.txt","r");
 	if(fp==NULL){
 		pthread_exit(NULL);
@@ -59,6 +60,7 @@ void *p_find_sameword(void* word){
         }
 	}
 	fclose(fp);
+    pthread_mutex_unlock(&mutexsum);
 }
 
 void *p_timer(){
@@ -86,15 +88,25 @@ int main()
 	//0번 스레드는 서버로부터 값을 읽는 스레드
 	//1번 스레드는 중복된 단어가 있는지 파일로부터 찾는 스레드
 	//2번 스레드는 타이머 스레드
-	int file1;
+	int file1, file2;
     int user_connect = 0;
 	char str[100];
 	char serverFile[30]="myfifo1";
+	pthread_mutex_init(&mutexsum,NULL);
+
 
 	file1= open("myfifo2",O_RDWR);//보낼때 쓰는 파일
 	strcpy(str,"클라이언트 입장");
 	write(file1,str,sizeof(str));
-	
+
+	//성능 측정을 위한 메시지 주고받기
+
+	file2= open("myfifo1",O_RDWR);
+	read(file2, readStr,sizeof(readStr));
+	printf("서버로부터 입력받은 값 : %s\n",readStr);
+	strcpy(str,"클라이언트1 전송");
+	write(file1,str,sizeof(str));
+
 	if(file1==-1){
 		printf("error\n");
 	}else{
