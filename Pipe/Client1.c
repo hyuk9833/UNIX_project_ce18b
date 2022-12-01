@@ -33,7 +33,7 @@ void *p_read_server(void* server){ //서버로부터 값 읽기
 	pthread_exit(NULL);
 }
 
-void *p_find_sameword(void* word){
+void *p_find_sameword(void* word){//중복 검사 thread
 	char *findWord = word;
 	char buf[1024];
     pthread_mutex_lock(&mutexsum);
@@ -63,7 +63,7 @@ void *p_find_sameword(void* word){
     pthread_mutex_unlock(&mutexsum);
 }
 
-void *p_timer(){
+void *p_timer(){//타이머 thread
 	timer=true;
     int endTime = (unsigned)time(NULL); //타이머 선언
     endTime+= 10; //10초 제한
@@ -100,12 +100,13 @@ int main()
 	write(file1,str,sizeof(str));
 
 	//성능 측정을 위한 메시지 주고받기
-
+	/*
 	file2= open("myfifo1",O_RDWR);
 	read(file2, readStr,sizeof(readStr));
 	printf("서버로부터 입력받은 값 : %s\n",readStr);
 	strcpy(str,"클라이언트1 전송");
 	write(file1,str,sizeof(str));
+	*/
 
 	if(file1==-1){
 		printf("error\n");
@@ -141,11 +142,11 @@ int main()
 				}
 			}
 			if(sig_timeout){
-				pthread_create(&pthread1[0],NULL,p_read_server,(void *) serverFile);
-				pthread_join(pthread1[0],NULL);
 				break;
 			}
 		}
+		pthread_create(&pthread1[0],NULL,p_read_server,(void *) serverFile);
+		pthread_join(pthread1[0],NULL);
 		
 	}
 	exit(0);

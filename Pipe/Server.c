@@ -22,25 +22,18 @@ bool client_bool,sig_timeout;
 pthread_mutex_t mutexsum;
 
 
-void *p_write_data(void* word){
+void *p_write_data(void* word){//파일에 클라이언트로부터 입력된 단어를 추가하는 Thread
     char *data = word;
-    /*int ret=pthread_rwlock_wrlock(&g_rwLock);
-    if (ret==0)
-    {
-        printf("error in wrlock\n");
-    }
-    */
     pthread_mutex_lock(&mutexsum);
     FILE* fo = fopen("word_arr.txt","a");
     fprintf(fo,"%s ",data);
-    //pthread_rwlock_unlock(&g_rwLock);
     pthread_mutex_unlock(&mutexsum);
     fclose(fo);
    	pthread_exit(NULL);
 
 }
 
-void *p_timer(){
+void *p_timer(){//타이머를 실행하는 Thread
     int endTime = (unsigned)time(NULL); //타이머 선언
     endTime+= 10; //초 제한
     while(1){
@@ -54,7 +47,7 @@ void *p_timer(){
     sig_timeout=true;
     pthread_exit(NULL);
 }
-void *p_read_client(void* client){ 
+void *p_read_client(void* client){ //클라이언트로부터 입력을 받는 Thread
     char *filepath = client;
     int fd;
     fd=open(filepath,O_RDWR);
@@ -64,7 +57,7 @@ void *p_read_client(void* client){
     }
     read(fd,readStr,sizeof(readStr));
     printf("%s\n",readStr);
-    if(strstr(readStr,"입장")>0){
+    if(strstr(readStr,"입장")>0){//만약 입장이라는 단어가 들어올 경우 사용자 1명 접속을 출력
         printf("사용자 1명 접속\n");
         strcpy(readStr,"없음");
         user_connect++;
@@ -95,10 +88,8 @@ int main()
 	int file4 = mkfifo("myfifo4",0666); //클라이언트2에게 받을때 쓰는 파일
     int result;
 
-    //성능 측정을 위한 변수
-    //pthread_rwlock_init(&g_rwLock,NULL);
     pthread_mutex_init(&mutexsum,NULL);
-    char *check="성능 측정";
+    char *check;
     char read_test[100];
     struct timespec start, stop;
 
@@ -112,6 +103,7 @@ int main()
     printf("서버 on\n");
 
     printf("사용자의 접속을 기다리는 중입니다.\n");
+    //클라이언트 2개의 접속을 기다리는 코드
     strcpy(filePath,"myfifo2");
     pthread_create(&pthread1[2],NULL,p_read_client,(void *)filePath);
     pthread_join(pthread1[2],NULL);
@@ -122,35 +114,37 @@ int main()
     if(user_connect==2){
         printf("게임을 시작합니다\n");
     }  
-    printf("게임을 시작하기전 성능 측정");
+
+    /*
+    printf("게임을 시작하기전 성능 측정\n");
     //타이머 시작
     //clock_gettime(CLOCK_MONOTONIC,&start);
     write(fd1,check,sizeof(check));
     fd2=open("myfifo2",O_RDWR);
     read(fd2,read_test,sizeof(read_test));
-    printf("입력 완료 입력 값은 : %s",read_test);
+    printf("입력 완료 입력 값은 : %s\n",read_test);
     close(fd2);
     //clock_gettime(CLOCK_MONOTONIC,&stop);
     double accum =(stop.tv_sec-start.tv_sec)+(double)(stop.tv_nsec-start.tv_nsec)/(double)BILLION;
     printf("걸리는 시간은 : %.9f\n",accum);
+    */
     
     while(1){
         sleep(3);
-        if(!client_bool){
+        if(!client_bool){//1번 클라이언트 차례일 경우
             strcpy(print_last_word,"클라이언트1님 차례, 마지막단어는 : ");
             strcpy(sendtext_cli,strcat(print_last_word,readStr));
             write(fd1,sendtext_cli,sizeof(sendtext_cli));
             strcpy(filePath,"myfifo2");
             pthread_create(&pthread1[1],NULL,p_timer,NULL);
             pthread_create(&pthread1[2],NULL,p_read_client,(void *)filePath);
-            if(pthread_join(pthread1[1],NULL)==0&&sig_timeout){
+
+            if(pthread_join(pthread1[1],NULL)==0&&sig_timeout){//타이머가 끝나고, sig_timeout이 true가 되었을때, 프로그램을 종료
                 pthread_cancel(pthread1[2]);
                 winner=2;
                 break;
             }
-            
-
-        }else{
+        }else{//2번 클라이언트 차례일 경우
             strcpy(print_last_word,"클라이언트2님 차례, 마지막단어는 : ");
             strcpy(sendtext_cli,strcat(print_last_word,readStr));
             write(fd3,sendtext_cli,sizeof(sendtext_cli));
@@ -158,13 +152,11 @@ int main()
             pthread_create(&pthread1[1],NULL,p_timer,NULL);
             pthread_create(&pthread1[2],NULL,p_read_client,(void *)filePath);
 
-            if(pthread_join(pthread1[1],NULL)==0&&sig_timeout){
+            if(pthread_join(pthread1[1],NULL)==0&&sig_timeout){//타이머가 끝나고, sig_timeout이 true가 되었을때, 프로그램을 종료
                 pthread_cancel(pthread1[2]);
                 winner=1;
                 break;
             }
-            
-            
         }
     }
     if(winner==1){

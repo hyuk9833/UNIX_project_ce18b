@@ -13,6 +13,7 @@ char readStr[256];
 bool write_data;
 bool word_already;
 bool timer,sig_timeout;
+pthread_mutex_t mutexsum;
 
 void *p_read_server(void* server){ //서버로부터 값 읽기
     char *filepath = server;
@@ -35,7 +36,11 @@ void *p_read_server(void* server){ //서버로부터 값 읽기
 void *p_find_sameword(void* word){
 	char *findWord = word;
 	char buf[1024];
+	pthread_mutex_lock(&mutexsum);
 	FILE* fp = fopen("word_arr.txt","r");
+	if(fp==NULL){
+		pthread_exit(NULL);
+	}
 	while(!feof(fp)){
 		fgets(buf, sizeof(buf) , fp);
 		
@@ -55,6 +60,7 @@ void *p_find_sameword(void* word){
         }
 	}
 	fclose(fp);
+	pthread_mutex_unlock(&mutexsum);
 }
 
 void *p_timer(){
@@ -86,6 +92,7 @@ int main()
     int user_connect = 0;
 	char str[100];
 	char serverFile[30]="myfifo3";
+	pthread_mutex_init(&mutexsum,NULL);
 
 	file1= open("myfifo4",O_RDWR);//보낼때 쓰는 파일
 	strcpy(str,"클라이언트 입장");
@@ -125,13 +132,13 @@ int main()
 				}
 			}
 			if(sig_timeout){
-				pthread_create(&pthread1[0],NULL,p_read_server,(void *) serverFile);
-				pthread_join(pthread1[0],NULL);
+				
 				break;
 			}
 			
 		}
-		
+		pthread_create(&pthread1[0],NULL,p_read_server,(void *) serverFile);
+		pthread_join(pthread1[0],NULL);
 	}
 	
 	exit(0);
